@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZENTRA Experimental Poultry Farm V1.0 | Engineering Portal</title>
+  <!-- Three.js and OrbitControls from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0f1416;
+      --panel-bg: rgba(20, 26, 29, 0.94);
+      --panel-border: #243438;
+      --brand-green: #10b981;
+      --brand-green-glow: rgba(16, 185, 129, 0.25);
+      --accent-gold: #f59e0b;
+      --accent-blue: #0ea5e9;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header Bar */
+    header {
+      height: 52px;
+      background: #11181c;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      z-index: 50;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-logo span {
+      color: var(--brand-green);
+    }
+
+    .tagline {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-left: 1px solid #334155;
+      padding-left: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--brand-green-glow);
+      color: var(--brand-green);
+      border-color: var(--brand-green);
+    }
+
+    /* Main Container */
+    #workspace {
+      flex: 1;
+      position: relative;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* 3D Viewport */
+    #viewport-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #1a252a 0%, #0d1214 100%);
+    }
+
+    #webgl-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Viewport Overlay Controls */
+    .viewport-overlay {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      background: var(--panel-bg);
+      padding: 5px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .ctrl-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 5px 9px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .ctrl-btn:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    .ctrl-btn.active-toggle {
+      background: var(--brand-green);
+      color: #064e3b;
+      border-color: var(--brand-green);
+    }
+
+    /* Hover/Click Inspector Overlay */
+    #inspection-card {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--brand-green);
+      border-radius: 6px;
+      padding: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      z-index: 15;
+      display: none;
+    }
+
+    #inspection-card h4 {
+      font-size: 0.9rem;
+      color: var(--brand-green);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #inspection-card p {
+      font-size: 0.76rem;
+      color: #cbd5e1;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 0.72rem;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--panel-border);
+    }
+
+    .spec-label {
+      color: var(--text-muted);
+    }
+
+    .spec-value {
+      font-weight: 600;
+      color: #f1f5f9;
+      text-align: right;
+    }
+
+    /* Right Side Drawer / Panels */
+    .side-panel {
+      width: 440px;
+      background: var(--panel-bg);
+      border-left: 1px solid var(--panel-border);
+      height: 100%;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+      z-index: 20;
+    }
+
+    .side-panel.active-panel {
+      display: flex;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--panel-border);
+      background: #141d21;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .panel-body {
+      padding: 16px;
+      flex: 1;
+    }
+
+    .section-card {
+      background: #162024;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-card h4 {
+      font-size: 0.82rem;
+      color: var(--accent-gold);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Form & Sliders */
+    .param-group {
+      margin-bottom: 10px;
+    }
+
+    .param-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .param-slider {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 5px;
+      border-radius: 3px;
+      background: #334155;
+      outline: none;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--brand-green);
+      cursor: pointer;
+    }
+
+    /* Tables */
+    .boq-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+      margin-top: 6px;
+    }
+
+    .boq-table th {
+      background: #1f2b30;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 6px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .boq-table td {
+      padding: 6px;
+      border: 1px solid var(--panel-border);
+      color: #cbd5e1;
+    }
+
+    .boq-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+
+    .badge-bdt {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--brand-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* Notice Banner */
+    .engineer-alert {
+      background: rgba(245, 158, 11, 0.1);
+      border-left: 3px solid var(--accent-gold);
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      color: #fde68a;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Drawing Viewer */
+    #cad-canvas {
+      background: #0b1114;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      width: 100%;
+      height: 280px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .side-panel {
+        width: 100%;
+        position: absolute;
+        top: 0;
+        right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header>
+    <div class="brand-group">
+      <div class="brand-logo">ZENTRA <span>FARM V1.0</span></div>
+      <div class="tagline">One Name. Infinite Paths.</div>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchMainTab('3d')">3D Model Engine</button>
+      <button class="tab-btn" onclick="switchMainTab('cad')">2D CAD Plans</button>
+      <button class="tab-btn" onclick="switchMainTab('boq')">BOQ & Cost Calculator</button>
+      <button class="tab-btn" onclick="switchMainTab('systems')">Systems & IoT</button>
+      <button class="tab-btn" onclick="window.print()">Print Report</button>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <div id="workspace">
+
+    <!-- 3D Canvas Area -->
+    <div id="viewport-container">
+      <canvas id="webgl-canvas"></canvas>
+
+      <!-- View & Layer Floating Toolbar -->
+      <div class="viewport-overlay">
+        <div class="btn-group">
+          <button class="ctrl-btn" onclick="setCameraView('perspective')">Perspective</button>
+          <button class="ctrl-btn" onclick="setCameraView('top')">Top View</button>
+          <button class="ctrl-btn" onclick="setCameraView('front')">Front</button>
+          <button class="ctrl-btn" onclick="setCameraView('side')">Side</button>
+          <button class="ctrl-btn" onclick="setCameraView('interior')">Interior</button>
+        </div>
+        <div class="btn-group">
+          <button class="ctrl-btn active-toggle" id="btn-roof" onclick="toggleVisibility('roof')">Toggle Roof</button>
+          <button class="ctrl-btn active-toggle" id="btn-walls" onclick="toggleVisibility('walls')">Toggle Walls</button>
+          <button class="ctrl-btn active-toggle" id="btn-equip" onclick="toggleVisibility('equip')">Toggle Equip</button>
+          <button class="ctrl-btn active-toggle" id="btn-arrows" onclick="toggleVisibility('arrows')">Airflow Vector</button>
+          <button class="ctrl-btn" onclick="resetModelDefaults()">Reset Layout</button>
+        </div>
+      </div>
+
+      <!-- Raycast Component Inspection Drawer -->
+      <div id="inspection-card">
+        <h4><span id="inspect-title">Component Inspector</span> <span class="badge badge-bdt" id="inspect-badge">VERIFIED</span></h4>
+        <p id="inspect-desc">Click on any structure or mechanical component in the 3D scene to inspect engineering specifications.</p>
+        <div class="spec-grid">
+          <div class="spec-label">Material / Spec:</div>
+          <div class="spec-value" id="inspect-mat">-</div>
+          <div class="spec-label">Zone / Section:</div>
+          <div class="spec-value" id="inspect-zone">-</div>
+          <div class="spec-label">Engineering Role:</div>
+          <div class="spec-value" id="inspect-role">-</div>
+          <div class="spec-label">Est. Cost (BDT):</div>
+          <div class="spec-value" id="inspect-cost">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 1: Parametric Controls & Model Config -->
+    <div class="side-panel active-panel" id="panel-3d">
+      <div class="panel-header">
+        <h3>Parametric Layout Engine</h3>
+        <span class="badge badge-bdt">Real-time Sync</span>
+      </div>
+      <div class="panel-body">
+        <div class="engineer-alert">
+          <strong>STRUCTURAL NOTICE:</strong> Existing 5th-storey columns and access curbs modeled from photos. Structural anchoring to be verified by a qualified engineer.
+        </div>
+
+        <div class="section-card">
+          <h4>Shed Boundary Variables (Feet)</h4>
+          <div class="param-group">
+            <div class="param-label"><span>Farm Length (ft)</span><span id="val-farm-len">36 ft</span></div>
+            <input type="range" class="param-slider" id="input-farm-len" min="24" max="44" step="1" value="36" oninput="updateParametrics()">
+          </div>
+          <div class="param-group">
+            <div class="param-label"><span>Farm Width (ft)</span><span id="val-farm-wid">20 ft</span></div>
+            <input type="range" class="param-slider" id="input-farm-wid" min="14" max="26" step="1" value="20" oninput="updateParametrics()">
+          </div>
+          <div class="param-group">
+            <div class="param-label"><span>Eaves Height (ft)</span><span id="val-eaves-ht">7.0 ft</span></div>
+            <input type="range" class="param-slider" id="input-eaves-ht" min="6.0" max="9.0" step="0.5" value="7.0" oninput="updateParametrics()">
+          </div>
+          <div class="param-group">
+            <div class="param-label"><span>Roof Apex Pitch (ft)</span><span id="val-apex-ht">10.5 ft</span></div>
+            <input type="range" class="param-slider" id="input-apex-ht" min="8.5" max="13.0" step="0.5" value="10.5" oninput="updateParametrics()">
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h4>Experimental Density Allocation</h4>
+          <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">
+            Target Initial Bird Population: <strong>300 Birds</strong> across 3 isolated comparison chambers.
+          </p>
+          <div class="spec-grid" style="border-top:none; margin-top:0;">
+            <div class="spec-label">Section A (Brooder/Control):</div>
+            <div class="spec-value">100 Birds (1.4 sqft/bd)</div>
+            <div class="spec-label">Section B (Ferment Bedding):</div>
+            <div class="spec-value">100 Birds (1.4 sqft/bd)</div>
+            <div class="spec-label">Section C (Alternative Diet):</div>
+            <div class="spec-value">100 Birds (1.4 sqft/bd)</div>
+            <div class="spec-label">Central Alley Width:</div>
+            <div class="spec-value">4.5 ft Clean Flow</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h4>Forensic Site Sync Status</h4>
+          <ul style="font-size:0.74rem; color:#cbd5e1; list-style-position: inside; line-height:1.6;">
+            <li>6x Column Rebar Stubs accounted for lateral ties</li>
+            <li>Raised Stairwell Curb protected with 4ft clear buffer</li>
+            <li>Direct floor load decoupled via Marine Ply Sleepers</li>
+            <li>Roof weight: ~1.99 psf (Well within standard capacity)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: 2D Engineering Drawings -->
+    <div class="side-panel" id="panel-cad">
+      <div class="panel-header">
+        <h3>CAD-Style Engineering Layout</h3>
+        <select id="cad-selector" onchange="renderCadView()" style="background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.75rem; padding:3px 8px; border-radius:4px;">
+          <option value="floor">A. Floor Plan (1:50)</option>
+          <option value="section">B. Cross Section (1:50)</option>
+          <option value="vent">C. Ventilation Airflow Plan</option>
+          <option value="water">D. Water Line Schematic</option>
+        </select>
+      </div>
+      <div class="panel-body">
+        <canvas id="cad-canvas" width="400" height="280"></canvas>
+        <div class="section-card" style="margin-top:14px;">
+          <h4 id="cad-desc-title">Floor Plan Overview</h4>
+          <p id="cad-desc-text" style="font-size:0.75rem; color:#cbd5e1; line-height:1.5;">
+            Dimensions: 36'-0" x 20'-0" internal clear footprint. Features 3 identical 10' x 14' deep-litter pens along the north cross-ventilation wall, linked via a 4'-6" south biosecurity access corridor.
+          </p>
+        </div>
+        <div class="section-card">
+          <h4>Drawing Legend & Symbology</h4>
+          <div class="spec-grid" style="border:none; margin:0;">
+            <div class="spec-label"><span style="color:#10b981;">━━</span> Structural GI Columns</div>
+            <div class="spec-value">75x75x2mm</div>
+            <div class="spec-label"><span style="color:#0ea5e9;">━━</span> UPVC Water Supply</div>
+            <div class="spec-value">3/4" Schedule 40</div>
+            <div class="spec-label"><span style="color:#f59e0b;">- -</span> Exhaust Fans (24")</div>
+            <div class="spec-value">2200 CFM ea</div>
+            <div class="spec-label"><span style="color:#94a3b8;">░░</span> Deep Litter Husk</div>
+            <div class="spec-value">3.5" Depth</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: BOQ & Cost Calculator -->
+    <div class="side-panel" id="panel-boq">
+      <div class="panel-header">
+        <h3>Quantity Surveyor BOQ</h3>
+        <div style="display:flex; gap:4px;">
+          <button class="ctrl-btn" onclick="setBudgetTier('A')">Tier A</button>
+          <button class="ctrl-btn active-toggle" id="btn-tier-b" onclick="setBudgetTier('B')">Tier B</button>
+          <button class="ctrl-btn" onclick="setBudgetTier('C')">Tier C</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="engineer-alert" id="budget-summary-banner">
+          <strong>BUDGET B (RECOMMENDED):</strong> Standard all-galvanized framing, insulated roof, dual 24" fans, full nipple drinker line, and core IoT microclimate telemetry.
+        </div>
+        
+        <table class="boq-table">
+          <thead>
+            <tr>
+              <th>Item / Subsystem</th>
+              <th>Qty</th>
+              <th>Unit</th>
+              <th>Total BDT</th>
+            </tr>
+          </thead>
+          <tbody id="boq-table-body">
+            <!-- Populated via JavaScript -->
+          </tbody>
+        </table>
+
+        <div class="section-card" style="margin-top:14px; background:#1c282e; border-color:var(--brand-green);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; color:#fff; font-size:0.85rem;">TOTAL ESTIMATED CAPITAL:</span>
+            <span style="font-weight:800; color:var(--brand-green); font-size:1.1rem;" id="boq-grand-total">BDT 342,935</span>
+          </div>
+          <div style="font-size:0.68rem; color:#94a3b8; margin-top:4px;">
+            *Prices based on retail survey in Dhaka/Gazipur market. Includes 7% structural contingency.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 4: Systems & IoT Architecture -->
+    <div class="side-panel" id="panel-systems">
+      <div class="panel-header">
+        <h3>Smart Farming & IoT Design</h3>
+        <span class="badge badge-bdt">Telemetry</span>
+      </div>
+      <div class="panel-body">
+        <div class="section-card">
+          <h4>Phased Technology Roadmap</h4>
+          <div class="spec-grid" style="border:none; margin:0; grid-template-columns: 80px 1fr;">
+            <div class="spec-label" style="color:var(--brand-green);">PHASE 1:</div>
+            <div class="spec-value" style="text-align:left;">DHT22 microclimate nodes + 3x IP Wi-Fi CCTV + manual logging</div>
+            <div class="spec-label" style="color:var(--accent-gold);">PHASE 2:</div>
+            <div class="spec-value" style="text-align:left;">Automated fan duty-cycle relay + pulse water meter telemetry</div>
+            <div class="spec-label" style="color:var(--accent-blue);">PHASE 3:</div>
+            <div class="spec-value" style="text-align:left;">Auto auger feeders + NH3 ammonia monitoring + 1.2kW solar back-up</div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h4>Experimental Comparison Metrics</h4>
+          <p style="font-size:0.74rem; color:#cbd5e1; line-height:1.5;">
+            The digital dashboard captures daily: Feed Consumption (kg), Water Intake (L), Pen Mortalities, and Weekly Sample Bodyweights to calculate live <strong>Feed Conversion Ratio (FCR)</strong> and <strong>European Production Efficiency Factor (EPEF)</strong> across Pens A, B, and C.
+          </p>
+        </div>
+
+        <div class="section-card">
+          <h4>Microclimate Threshold Envelopes</h4>
+          <div class="spec-grid" style="border:none; margin:0;">
+            <div class="spec-label">Target Brooding Temp:</div>
+            <div class="spec-value">32.0°C (Day 1) to 21.0°C (Wk 5)</div>
+            <div class="spec-label">Critical High Temp Alert:</div>
+            <div class="spec-value">> 32.5°C (Triggers Fans)</div>
+            <div class="spec-label">Relative Humidity Max:</div>
+            <div class="spec-value">75% RH Warning Threshold</div>
+            <div class="spec-label">Max Ammonia (NH3):</div>
+            <div class="spec-value">&lt; 15 ppm Safe Working Level</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* =========================================================================
+       PARAMETRIC DATA MODEL & GLOBAL VARIABLES
+       ========================================================================= */
+    const PARAMETRIC = {
+      SITE_LENGTH: 48,
+      SITE_WIDTH: 30,
+      FARM_LENGTH: 36,
+      FARM_WIDTH: 20,
+      EAVES_HEIGHT: 7.0,
+      APEX_HEIGHT: 10.5,
+      ROOF_OVERHANG: 3.0,
+      BIRD_COUNT: 300,
+      SECTION_A: 100,
+      SECTION_B: 100,
+      SECTION_C: 100,
+      FANS: 2,
+      TANK_CAPACITY_L: 500
+    };
+
+    let activeBudgetTier = 'B';
+    const layerVisibility = {
+      roof: true,
+      walls: true,
+      equip: true,
+      arrows: true
+    };
+
+    /* Three.js Engine Variables */
+    let scene, camera, renderer, controls, raycaster, mouse;
+    let farmGroup, roofGroup, wallGroup, equipGroup, arrowGroup;
+    const inspectableObjects = [];
+
+    /* =========================================================================
+       INITIALIZATION & SCENE SETUP
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      initThreeEngine();
+      populateBoqTable();
+      renderCadView();
+      window.addEventListener('resize', onWindowResize);
+    });
+
+    function initThreeEngine() {
+      const container = document.getElementById('viewport-container');
+      const canvas = document.getElementById('webgl-canvas');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0e1417);
+      scene.fog = new THREE.FogExp2(0x0e1417, 0.015);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.5, 300);
+      camera.position.set(38, 24, 42);
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.02; // Keep above floor
+      controls.target.set(0, 4, 0);
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambientLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfff7ed, 0.85);
+      sunLight.position.set(30, 45, 25);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      scene.add(sunLight);
+
+      const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.35);
+      fillLight.position.set(-25, 20, -20);
+      scene.add(fillLight);
+
+      // Build 3D Entities
+      buildRooftopBase();
+      buildPoultryShed();
+
+      // Interaction
+      canvas.addEventListener('click', onSceneClick);
+
+      animate();
+    }
+
+    /* =========================================================================
+       ROOFTOP BASE (Accurate to Site Photos)
+       ========================================================================= */
+    function buildRooftopBase() {
+      const baseGroup = new THREE.Group();
+
+      // 1. Concrete Roof Slab (Total 8 Katha representation context)
+      const slabGeo = new THREE.BoxGeometry(65, 1.5, 45);
+      const slabMat = new THREE.MeshStandardMaterial({
+        color: 0x8a9296,
+        roughness: 0.85,
+        metalness: 0.05
+      });
+      const slab = new THREE.Mesh(slabGeo, slabMat);
+      slab.position.y = -0.75;
+      slab.receiveShadow = true;
+      baseGroup.add(slab);
+
+      // 2. Active 2-Katha Farm Leased Boundary Marking (48' x 30')
+      const boundGeo = new THREE.PlaneGeometry(PARAMETRIC.SITE_LENGTH, PARAMETRIC.SITE_WIDTH);
+      const boundEdge = new THREE.EdgesGeometry(boundGeo);
+      const boundLine = new THREE.LineSegments(boundEdge, new THREE.LineDashedMaterial({
+        color: 0x10b981,
+        dashSize: 1,
+        gapSize: 0.5
+      }));
+      boundLine.computeLineDistances();
+      boundLine.rotation.x = -Math.PI / 2;
+      boundLine.position.y = 0.02;
+      baseGroup.add(boundLine);
+
+      // 3. Existing Concrete Columns with Exposed Rebars (Per attached photos)
+      const colPositions = [
+        [-20, 0, -12], [-6, 0, -12], [8, 0, -12], [22, 0, -12],
+        [-20, 0, 12],  [-6, 0, 12],  [8, 0, 12],  [22, 0, 12]
+      ];
+
+      colPositions.forEach(pos => {
+        // Concrete Column Stub
+        const colStubGeo = new THREE.BoxGeometry(1.2, 2.5, 1.2);
+        const colStubMat = new THREE.MeshStandardMaterial({ color: 0x71797e, roughness: 0.9 });
+        const stub = new THREE.Mesh(colStubGeo, colStubMat);
+        stub.position.set(pos[0], 1.25, pos[2]);
+        baseGroup.add(stub);
+
+        // Exposed Vertical Rebar Bundles
+        for (let i = 0; i < 4; i++) {
+          const rebarGeo = new THREE.CylinderGeometry(0.04, 0.04, 5.0, 6);
+          const rebarMat = new THREE.MeshStandardMaterial({ color: 0x8b3a2b, roughness: 0.6 });
+          const rebar = new THREE.Mesh(rebarGeo, rebarMat);
+          const ox = (i % 2 === 0 ? 0.35 : -0.35);
+          const oz = (i < 2 ? 0.35 : -0.35);
+          rebar.position.set(pos[0] + ox, 3.5, pos[2] + oz);
+          baseGroup.add(rebar);
+        }
+      });
+
+      // 4. Existing Raised Stairwell Curb with Corrugated Cover (From Photo Analysis)
+      const curbGeo = new THREE.BoxGeometry(8, 1.6, 6);
+      const curbMat = new THREE.MeshStandardMaterial({ color: 0x5a6368 });
+      const curb = new THREE.Mesh(curbGeo, curbMat);
+      curb.position.set(-16, 0.8, 4);
+      baseGroup.add(curb);
+
+      const coverGeo = new THREE.BoxGeometry(8.6, 0.15, 6.6);
+      const coverMat = new THREE.MeshStandardMaterial({ color: 0x7c8c8e, roughness: 0.5, metalness: 0.3 });
+      const cover = new THREE.Mesh(coverGeo, coverMat);
+      cover.position.set(-16, 1.65, 4);
+      baseGroup.add(cover);
+
+      scene.add(baseGroup);
+    }
+
+    /* =========================================================================
+       POULTRY SHED STRUCTURAL MODELING
+       ========================================================================= */
+    function buildPoultryShed() {
+      if (farmGroup) scene.remove(farmGroup);
+
+      farmGroup = new THREE.Group();
+      roofGroup = new THREE.Group();
+      wallGroup = new THREE.Group();
+      equipGroup = new THREE.Group();
+      arrowGroup = new THREE.Group();
+
+      inspectableObjects.length = 0;
+
+      const L = PARAMETRIC.FARM_LENGTH;
+      const W = PARAMETRIC.FARM_WIDTH;
+      const EH = PARAMETRIC.EAVES_HEIGHT;
+      const AH = PARAMETRIC.APEX_HEIGHT;
+      const OH = PARAMETRIC.ROOF_OVERHANG;
+
+      // 1. Raised Floor System (Marine Plywood on Concrete Modular Sleepers)
+      const floorThick = 0.7;
+      const floorGeo = new THREE.BoxGeometry(L, floorThick, W);
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x544033, roughness: 0.9 });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.position.set(0, floorThick / 2, 0);
+      floor.receiveShadow = true;
+      floor.userData = {
+        name: "Raised Floor System",
+        material: "18mm Treated Marine Ply on Neoprene & Sleeper Pads",
+        zone: "Full Shed Footprint (720 sq ft)",
+        role: "Decouples heat, prevents moisture, protects roof waterproofing",
+        cost: "BDT 37,600"
+      };
+      farmGroup.add(floor);
+      inspectableObjects.push(floor);
+
+      // Deep Litter Bedding Layer (Rice Husk)
+      const huskGeo = new THREE.BoxGeometry(L - 1, 0.25, W - 1);
+      const huskMat = new THREE.MeshStandardMaterial({ color: 0xd9b36c, roughness: 1.0 });
+      const husk = new THREE.Mesh(huskGeo, huskMat);
+      husk.position.set(0, floorThick + 0.12, 0);
+      farmGroup.add(husk);
+
+      // 2. Structural Galvanized Steel Frame (Box Columns & Rafters)
+      const colMat = new THREE.MeshStandardMaterial({ color: 0xc2c7cb, metalness: 0.7, roughness: 0.3 });
+      const numBays = 4; // 4 portal frames (3 bays of 12 ft)
+      const baySpacing = L / numBays;
+
+      for (let b = 0; b <= numBays; b++) {
+        const x = -L / 2 + b * baySpacing;
+
+        // Left Column
+        const col1 = createBeam(0.35, EH, 0.35, colMat, x, EH / 2 + floorThick, -W / 2);
+        farmGroup.add(col1);
+
+        // Right Column
+        const col2 = createBeam(0.35, EH, 0.35, colMat, x, EH / 2 + floorThick, W / 2);
+        farmGroup.add(col2);
+
+        // Rafter Left (Slope to Apex)
+        const rafterLen = Math.sqrt(Math.pow(W / 2 + OH, 2) + Math.pow(AH - EH, 2));
+        const rafterAng = Math.atan2(AH - EH, W / 2);
+
+        const rafL = createBeam(0.25, 0.25, rafterLen, colMat, x, (EH + AH) / 2 + floorThick, -W / 4);
+        rafL.rotation.x = rafterAng;
+        roofGroup.add(rafL);
+
+        const rafR = createBeam(0.25, 0.25, rafterLen, colMat, x, (EH + AH) / 2 + floorThick, W / 4);
+        rafR.rotation.x = -rafterAng;
+        roofGroup.add(rafR);
+      }
+
+      // 3. Roof Panels (0.47mm Color-Coated Sheet with Ridge Gap)
+      const roofMat = new THREE.MeshStandardMaterial({
+        color: 0xecf0f1,
+        metalness: 0.4,
+        roughness: 0.3,
+        side: THREE.DoubleSide
+      });
+
+      const roofHalfW = (W / 2) + OH;
+      const roofPitchHyp = Math.sqrt(Math.pow(roofHalfW, 2) + Math.pow(AH - EH, 2));
+      const roofAng = Math.atan2(AH - EH, roofHalfW);
+
+      // North Slope
+      const rPanelLGeo = new THREE.PlaneGeometry(L + OH * 1.5, roofPitchHyp);
+      const rPanelL = new THREE.Mesh(rPanelLGeo, roofMat);
+      rPanelL.position.set(0, (EH + AH) / 2 + floorThick + 0.1, -roofHalfW / 2);
+      rPanelL.rotation.x = Math.PI / 2 - roofAng;
+      rPanelL.userData = {
+        name: "Insulated GI Roof (North)",
+        material: "0.47mm Color Sheet + Bubble Foil Barrier",
+        zone: "Roof Apex (14° slope)",
+        role: "Rain deflection & 85% radiant solar heat barrier",
+        cost: "BDT 64,600 (Combined)"
+      };
+      roofGroup.add(rPanelL);
+      inspectableObjects.push(rPanelL);
+
+      // South Slope
+      const rPanelR = new THREE.Mesh(rPanelLGeo, roofMat);
+      rPanelR.position.set(0, (EH + AH) / 2 + floorThick + 0.1, roofHalfW / 2);
+      rPanelR.rotation.x = -(Math.PI / 2 - roofAng);
+      rPanelR.userData = rPanelL.userData;
+      roofGroup.add(rPanelR);
+      inspectableObjects.push(rPanelR);
+
+      // Ridge Cap (Elevated for buouyancy exhaust)
+      const capGeo = new THREE.PlaneGeometry(L + OH * 1.5, 2.5);
+      const cap = new THREE.Mesh(capGeo, roofMat);
+      cap.position.set(0, AH + floorThick + 0.65, 0);
+      cap.rotation.x = Math.PI / 2;
+      roofGroup.add(cap);
+
+      // 4. Perimeter Dwarf Wall (Galvanized splashguard) + Poultry Mesh
+      const dwarfMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6, metalness: 0.5 });
+      const dwarfH = 1.5;
+
+      // North Dwarf Wall
+      const dwNorth = createBeam(L, dwarfH, 0.15, dwarfMat, 0, dwarfH / 2 + floorThick, -W / 2);
+      wallGroup.add(dwNorth);
+
+      // South Dwarf Wall
+      const dwSouth = createBeam(L, dwarfH, 0.15, dwarfMat, 0, dwarfH / 2 + floorThick, W / 2);
+      wallGroup.add(dwSouth);
+
+      // Mesh Openings (Semi-transparent representation)
+      const meshMat = new THREE.MeshStandardMaterial({
+        color: 0xbdc3c7,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.4
+      });
+      const meshNorth = createBeam(L, EH - dwarfH, 0.05, meshMat, 0, (EH + dwarfH) / 2 + floorThick, -W / 2);
+      wallGroup.add(meshNorth);
+
+      const meshSouth = createBeam(L, EH - dwarfH, 0.05, meshMat, 0, (EH + dwarfH) / 2 + floorThick, W / 2);
+      wallGroup.add(meshSouth);
+
+      // 5. Tri-Section Internal Partitions (Pens A, B, C)
+      const partMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, wireframe: true, opacity: 0.5 });
+      const penDividerX1 = -L / 6;
+      const penDividerX2 = L / 6;
+
+      const part1 = createBeam(0.1, EH, W - 4.5, partMat, penDividerX1, EH / 2 + floorThick, -2.25);
+      const part2 = createBeam(0.1, EH, W - 4.5, partMat, penDividerX2, EH / 2 + floorThick, -2.25);
+      wallGroup.add(part1);
+      wallGroup.add(part2);
+
+      // Section Identification Markers
+      createSectionMarker("SECTION A (100 Birds)", -L / 3, floorThick + 0.5, -2, "Section A");
+      createSectionMarker("SECTION B (100 Birds)", 0, floorThick + 0.5, -2, "Section B");
+      createSectionMarker("SECTION C (100 Birds)", L / 3, floorThick + 0.5, -2, "Section C");
+
+      // 6. Mechanical Equipment: 24" Wall Exhaust Fans
+      const fanMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6 });
+      for (let f = 0; f < PARAMETRIC.FANS; f++) {
+        const fx = L / 2;
+        const fy = 4.2 + floorThick;
+        const fz = -4 + f * 8;
+
+        const fanHousing = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16), fanMat);
+        fanHousing.rotation.z = Math.PI / 2;
+        fanHousing.position.set(fx, fy, fz);
+        fanHousing.userData = {
+          name: "24-Inch Industrial Exhaust Fan",
+          material: "Galvanized Shutter Axial Fan (0.25 kW)",
+          zone: `East Gable End (Unit ${f + 1})`,
+          role: "Automated negative pressure summer exhaust (2,200 CFM)",
+          cost: "BDT 15,600 (Dual Units)"
+        };
+        equipGroup.add(fanHousing);
+        inspectableObjects.push(fanHousing);
+      }
+
+      // 7. Water Supply Day Tank & Nipple Lines
+      const tankMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3 });
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 4.2, 16), tankMat);
+      tank.position.set(-L / 2 - 2, 4.5 + floorThick, -W / 2);
+      tank.userData = {
+        name: "500L Overhead Header Water Tank",
+        material: "4-Layer Food Grade Polyethylene",
+        zone: "Column Line 1 (West Service End)",
+        role: "Low-pressure gravity feed + medication dosing",
+        cost: "BDT 6,200"
+      };
+      equipGroup.add(tank);
+      inspectableObjects.push(tank);
+
+      // Nipple Drinker Lateral Pipes
+      const pipeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      for (let p = 0; p < 3; p++) {
+        const pz = -W / 2 + 3 + p * 4;
+        const pipe = createBeam(L - 2, 0.1, 0.1, pipeMat, 0, 2.5 + floorThick, pz);
+        equipGroup.add(pipe);
+      }
+
+      // 8. Airflow Dynamics Vector Arrows (Fresh In -> Hot Out)
+      buildAirflowVectors(L, W, EH, AH, floorThick);
+
+      farmGroup.add(roofGroup);
+      farmGroup.add(wallGroup);
+      farmGroup.add(equipGroup);
+      farmGroup.add(arrowGroup);
+
+      scene.add(farmGroup);
+    }
+
+    function createBeam(xSize, ySize, zSize, material, x, y, z) {
+      const geo = new THREE.BoxGeometry(xSize, ySize, zSize);
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    function createSectionMarker(title, x, y, z, secKey) {
+      const padGeo = new THREE.BoxGeometry(7, 0.05, 7);
+      const padMat = new THREE.MeshStandardMaterial({
+        color: 0x10b981,
+        transparent: true,
+        opacity: 0.15
+      });
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.position.set(x, y, z);
+      pad.userData = {
+        name: title,
+        material: "Treated Dry Rice Husk on Marine Ply",
+        zone: secKey,
+        role: "Dedicated 100-Bird Experimental Evaluation Chamber",
+        cost: "BDT 14,000 (Internal Fixtures)"
+      };
+      farmGroup.add(pad);
+      inspectableObjects.push(pad);
+    }
+
+    function buildAirflowVectors(L, W, EH, AH, fThick) {
+      const arrowMatIn = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      const arrowMatOut = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+
+      for (let i = -1; i <= 1; i++) {
+        // Fresh Inflow Arrows (North Wall)
+        const arrowIn = new THREE.ArrowHelper(
+          new THREE.Vector3(0, -0.2, 1).normalize(),
+          new THREE.Vector3(i * 10, EH - 1.5 + fThick, -W / 2 - 4),
+          4.5,
+          0x38bdf8,
+          1.0,
+          0.6
+        );
+        arrowGroup.add(arrowIn);
+
+        // Warm Buoyancy Outflow Arrows (Ridge Apex)
+        const arrowOut = new THREE.ArrowHelper(
+          new THREE.Vector3(0, 1, 0).normalize(),
+          new THREE.Vector3(i * 10, AH + fThick + 0.8, 0),
+          3.5,
+          0xf43f5e,
+          1.0,
+          0.6
+        );
+        arrowGroup.add(arrowOut);
+      }
+    }
+
+    /* =========================================================================
+       USER INTERACTION & RAYCASTING INSPECTOR
+       ========================================================================= */
+    function onSceneClick(event) {
+      const canvas = document.getElementById('webgl-canvas');
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / canvas.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / canvas.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(inspectableObjects, true);
+
+      const card = document.getElementById('inspection-card');
+      if (intersects.length > 0) {
+        const item = intersects[0].object.userData;
+        if (item && item.name) {
+          document.getElementById('inspect-title').innerText = item.name;
+          document.getElementById('inspect-mat').innerText = item.material || 'Standard';
+          document.getElementById('inspect-zone').innerText = item.zone || 'General';
+          document.getElementById('inspect-role').innerText = item.role || 'Operational';
+          document.getElementById('inspect-cost').innerText = item.cost || 'Indicative';
+          card.style.display = 'block';
+          return;
+        }
+      }
+      card.style.display = 'none';
+    }
+
+    /* Camera Preset Controls */
+    function setCameraView(preset) {
+      const L = PARAMETRIC.FARM_LENGTH;
+      const target = new THREE.Vector3(0, 4, 0);
+
+      switch (preset) {
+        case 'perspective':
+          camera.position.set(36, 24, 38);
+          break;
+        case 'top':
+          camera.position.set(0, 52, 0.1);
+          break;
+        case 'front':
+          camera.position.set(0, 6, 42);
+          break;
+        case 'side':
+          camera.position.set(45, 6, 0);
+          break;
+        case 'interior':
+          camera.position.set(0, 3, 2);
+          target.set(0, 3, -4);
+          break;
+      }
+      controls.target.copy(target);
+      controls.update();
+    }
+
+    function toggleVisibility(layer) {
+      layerVisibility[layer] = !layerVisibility[layer];
+      const btn = document.getElementById(`btn-${layer}`);
+
+      if (layer === 'roof' && roofGroup) roofGroup.visible = layerVisibility.roof;
+      if (layer === 'walls' && wallGroup) wallGroup.visible = layerVisibility.walls;
+      if (layer === 'equip' && equipGroup) equipGroup.visible = layerVisibility.equip;
+      if (layer === 'arrows' && arrowGroup) arrowGroup.visible = layerVisibility.arrows;
+
+      if (btn) {
+        btn.classList.toggle('active-toggle', layerVisibility[layer]);
+      }
+    }
+
+    function updateParametrics() {
+      PARAMETRIC.FARM_LENGTH = parseFloat(document.getElementById('input-farm-len').value);
+      PARAMETRIC.FARM_WIDTH = parseFloat(document.getElementById('input-farm-wid').value);
+      PARAMETRIC.EAVES_HEIGHT = parseFloat(document.getElementById('input-eaves-ht').value);
+      PARAMETRIC.APEX_HEIGHT = parseFloat(document.getElementById('input-apex-ht').value);
+
+      document.getElementById('val-farm-len').innerText = `${PARAMETRIC.FARM_LENGTH} ft`;
+      document.getElementById('val-farm-wid').innerText = `${PARAMETRIC.FARM_WIDTH} ft`;
+      document.getElementById('val-eaves-ht').innerText = `${PARAMETRIC.EAVES_HEIGHT.toFixed(1)} ft`;
+      document.getElementById('val-apex-ht').innerText = `${PARAMETRIC.APEX_HEIGHT.toFixed(1)} ft`;
+
+      buildPoultryShed();
+      renderCadView();
+    }
+
+    function resetModelDefaults() {
+      document.getElementById('input-farm-len').value = 36;
+      document.getElementById('input-farm-wid').value = 20;
+      document.getElementById('input-eaves-ht').value = 7.0;
+      document.getElementById('input-apex-ht').value = 10.5;
+      updateParametrics();
+      setCameraView('perspective');
+    }
+
+    /* Animation Loop */
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('viewport-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    /* =========================================================================
+       UI TABS & CAD 2D VECTOR VIEWER
+       ========================================================================= */
+    function switchMainTab(tabKey) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('active-panel'));
+
+      event.target.classList.add('active');
+
+      if (tabKey === '3d') document.getElementById('panel-3d').classList.add('active-panel');
+      if (tabKey === 'cad') {
+        document.getElementById('panel-cad').classList.add('active-panel');
+        renderCadView();
+      }
+      if (tabKey === 'boq') document.getElementById('panel-boq').classList.add('active-panel');
+      if (tabKey === 'systems') document.getElementById('panel-systems').classList.add('active-panel');
+    }
+
+    function renderCadView() {
+      const canvas = document.getElementById('cad-canvas');
+      const ctx = canvas.getContext('2d');
+      const type = document.getElementById('cad-selector').value;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 1.5;
+
+      const pad = 35;
+      const w = canvas.width - pad * 2;
+      const h = canvas.height - pad * 2;
+
+      if (type === 'floor') {
+        // Floor Plan View
+        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeRect(pad, pad, w, h);
+
+        // Central Alleyway
+        ctx.strokeStyle = '#64748b';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pad, pad + h * 0.68);
+        ctx.lineTo(pad + w, pad + h * 0.68);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Internal Pen Partitions (Section A, B, C)
+        ctx.strokeStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(pad + w * 0.33, pad);
+        ctx.lineTo(pad + w * 0.33, pad + h * 0.68);
+        ctx.moveTo(pad + w * 0.66, pad);
+        ctx.lineTo(pad + w * 0.66, pad + h * 0.68);
+        ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '10px monospace';
+        ctx.fillText('SEC A (100 B)', pad + 15, pad + 45);
+        ctx.fillText('SEC B (100 B)', pad + w * 0.33 + 15, pad + 45);
+        ctx.fillText('SEC C (100 B)', pad + w * 0.66 + 15, pad + 45);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('4\'-6" BIOSECURE SERVICE ALLEY', pad + 40, pad + h * 0.86);
+
+        // Dimensions
+        ctx.strokeStyle = '#f59e0b';
+        drawCadDimension(ctx, pad, pad + h + 18, pad + w, pad + h + 18, `${PARAMETRIC.FARM_LENGTH}'-0" (10.97m)`);
+        drawCadDimension(ctx, pad - 18, pad, pad - 18, pad + h, `${PARAMETRIC.FARM_WIDTH}'-0" (6.10m)`);
+
+        document.getElementById('cad-desc-title').innerText = "CAD Floor Plan (1:50 Model)";
+        document.getElementById('cad-desc-text').innerText = "Reflects active 36' x 20' footprint with 3 segregated 10' x 14' chambers. South corridor maintains continuous bioclimatic buffer.";
+      } else if (type === 'section') {
+        // Cross Section View
+        ctx.strokeStyle = '#10b981';
+        // Roof Trusses
+        ctx.beginPath();
+        ctx.moveTo(pad, pad + h * 0.65);
+        ctx.lineTo(pad + w / 2, pad + 20);
+        ctx.lineTo(pad + w, pad + h * 0.65);
+        ctx.stroke();
+
+        // Overhangs
+        ctx.strokeStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.moveTo(pad - 15, pad + h * 0.72);
+        ctx.lineTo(pad, pad + h * 0.65);
+        ctx.moveTo(pad + w + 15, pad + h * 0.72);
+        ctx.lineTo(pad + w, pad + h * 0.65);
+        ctx.stroke();
+
+        // Columns & Floor
+        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeRect(pad + 10, pad + h * 0.65, 8, h * 0.3);
+        ctx.strokeRect(pad + w - 18, pad + h * 0.65, 8, h * 0.3);
+        ctx.fillRect(pad, pad + h * 0.95, w, 6);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '10px monospace';
+        ctx.fillText(`Apex: +${PARAMETRIC.APEX_HEIGHT.toFixed(1)}'`, pad + w / 2 - 30, pad + 15);
+        ctx.fillText(`Eaves: +${PARAMETRIC.EAVES_HEIGHT.toFixed(1)}'`, pad - 20, pad + h * 0.62);
+
+        document.getElementById('cad-desc-title').innerText = "Cross Section & Ridge Elevation";
+        document.getElementById('cad-desc-text').innerText = "Shows 14-degree roof pitch with 3.0ft rain overhangs, 1.5ft splash walls, and continuous thermal ridge ventilator.";
+      } else {
+        // General Schematic Render
+        ctx.strokeStyle = '#0ea5e9';
+        ctx.strokeRect(pad, pad, w, h);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('SCHEMATIC SCHEME GENERATED FOR CURRENT ACTIVE ZONE', pad + 20, pad + h / 2);
+      }
+    }
+
+    function drawCadDimension(ctx, x1, y1, x2, y2, text) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '9px monospace';
+      ctx.fillText(text, (x1 + x2) / 2 - 35, (y1 + y2) / 2 - 4);
+    }
+
+    /* =========================================================================
+       BILL OF QUANTITIES (BOQ) DATA ENGINE
+       ========================================================================= */
+    const BOQ_DATABASE = [
+      { ref: "1.1", name: "GI Hollow Box Columns (75x75x2mm)", qty: 180, unit: "RFT", rate: 240, tier: "all" },
+      { ref: "1.2", name: "GI Rafters & Purlins (50x50x1.6mm)", qty: 260, unit: "RFT", rate: 165, tier: "all" },
+      { ref: "1.3", name: "Precast Concrete Ballast Sleepers", qty: 18, unit: "Nos", rate: 450, tier: "all" },
+      { ref: "1.4", name: "18mm Marine Plywood Floor Bed", qty: 14, unit: "Sht", rate: 2200, tier: "all" },
+      { ref: "2.1", name: "0.47mm Color-Coated Roof Sheet", qty: 850, unit: "Sq Ft", rate: 58, tier: "all" },
+      { ref: "2.2", name: "Double-Foil Bubble Heat Barrier", qty: 850, unit: "Sq Ft", rate: 18, tier: "B,C" },
+      { ref: "2.3", name: "Galvanized 1x1\" Wire Netting", qty: 560, unit: "Sq Ft", rate: 22, tier: "all" },
+      { ref: "3.1", name: "500L Food-Grade Water Day Tank", qty: 1, unit: "Nos", rate: 6200, tier: "all" },
+      { ref: "3.2", name: "Stainless 360° Nipple Drinker Set", qty: 30, unit: "Nos", rate: 95, tier: "B,C" },
+      { ref: "4.1", name: "24\" Industrial Axial Exhaust Fan", qty: 2, unit: "Nos", rate: 7800, tier: "B,C" },
+      { ref: "4.2", name: "IP65 Dimmable LED Farm Bulbs", qty: 6, unit: "Nos", rate: 450, tier: "all" },
+      { ref: "5.1", name: "DHT22 Microclimate Sensor Nodes", qty: 3, unit: "Nos", rate: 1100, tier: "B,C" },
+      { ref: "5.2", name: "Outdoor 3MP Wi-Fi CCTV Cameras", qty: 3, unit: "Nos", rate: 3200, tier: "B,C" },
+      { ref: "5.3", name: "IoT Cloud Relay & Smart Panel", qty: 1, unit: "Set", rate: 22000, tier: "C" },
+      { ref: "6.1", name: "Aged Rice Husk Litter Material", qty: 45, unit: "Bags", rate: 120, tier: "all" },
+      { ref: "6.2", name: "Erection, Labor & Rooftop Hauling", qty: 1, unit: "LS", rate: 36000, tier: "all" }
+    ];
+
+    function setBudgetTier(tier) {
+      activeBudgetTier = tier;
+      document.querySelectorAll('#panel-boq .ctrl-btn').forEach(btn => btn.classList.remove('active-toggle'));
+      event.target.classList.add('active-toggle');
+      populateBoqTable();
+    }
+
+    function populateBoqTable() {
+      const tbody = document.getElementById('boq-table-body');
+      tbody.innerHTML = '';
+      let subtotal = 0;
+
+      BOQ_DATABASE.forEach(item => {
+        const isIncluded = item.tier === 'all' || item.tier.includes(activeBudgetTier);
+        if (isIncluded) {
+          const itemTotal = item.qty * item.rate;
+          subtotal += itemTotal;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${item.name}</strong></td>
+            <td>${item.qty}</td>
+            <td>${item.unit}</td>
+            <td>${itemTotal.toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      });
+
+      const grandTotal = Math.round(subtotal * 1.07); // 7% contingency
+      document.getElementById('boq-grand-total').innerText = `BDT ${grandTotal.toLocaleString()}`;
+
+      const banner = document.getElementById('budget-summary-banner');
+      if (activeBudgetTier === 'A') {
+        banner.innerHTML = "<strong>BUDGET A (ESSENTIAL):</strong> Lowest practical cost. Uninsulated roof with lime wash, single fan, and standard PVC manual bell drinkers.";
+      } else if (activeBudgetTier === 'B') {
+        banner.innerHTML = "<strong>BUDGET B (RECOMMENDED):</strong> Standard all-galvanized framing, insulated roof, dual 24\" fans, full nipple drinker line, and core IoT microclimate telemetry.";
+      } else {
+        banner.innerHTML = "<strong>BUDGET C (FUTURE SMART):</strong> Fully automated cloud-synced microclimate dashboard, electronic dosing, ammonia sensors, and 1.2kW solar IPS.";
+      }
+    }
+  </script>
+</body>
+</html>
